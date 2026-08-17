@@ -1,0 +1,273 @@
+document.addEventListener('DOMContentLoaded', function () {
+
+    const button = document.getElementById('notificationButton');
+    const panel = document.getElementById('notificationPanel');
+    const closeButton = document.getElementById('closeNotification');
+    const list = document.getElementById('notificationList');
+    const badge = document.getElementById('notificationBadge');
+    const countText = document.getElementById('notificationCountText');
+
+    if (!button || !panel) {
+        console.warn('KhÃ´ng tÃ¬m tháº¥y há»‡ thá»‘ng thÃ´ng bÃ¡o.');
+        return;
+    }
+
+    // ==============================
+    // Má»ž / ÄÃ“NG Báº¢NG THÃ”NG BÃO
+    // ==============================
+
+    button.addEventListener('click', function (event) {
+
+        event.stopPropagation();
+
+        panel.classList.toggle('show');
+
+        if (panel.classList.contains('show')) {
+            loadNotifications();
+        }
+
+    });
+
+
+    // ==============================
+    // NÃšT ÄÃ“NG
+    // ==============================
+
+    if (closeButton) {
+
+        closeButton.addEventListener('click', function (event) {
+
+            event.stopPropagation();
+
+            panel.classList.remove('show');
+
+        });
+
+    }
+
+
+    // ==============================
+    // KHÃ”NG ÄÃ“NG KHI CLICK TRONG PANEL
+    // ==============================
+
+    panel.addEventListener('click', function (event) {
+        event.stopPropagation();
+    });
+
+
+    // ==============================
+    // CLICK RA NGOÃ€I â†’ ÄÃ“NG
+    // ==============================
+
+    document.addEventListener('click', function () {
+        panel.classList.remove('show');
+    });
+
+
+    // ==============================
+    // LOAD NOTIFICATIONS
+    // ==============================
+
+    function loadNotifications() {
+
+        if (!list) return;
+
+        list.innerHTML = `
+            <div class="notification-empty">
+                Äang táº£i thÃ´ng bÃ¡o...
+            </div>
+        `;
+
+        fetch('notifications_api.php?action=list', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(function (response) {
+
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+
+            return response.json();
+
+        })
+        .then(function (data) {
+
+            console.log('Notification API:', data);
+
+            // API yÃªu cáº§u Ä‘Äƒng nháº­p
+            if (data.success === false) {
+
+                list.innerHTML = `
+                    <div class="notification-empty">
+                        ${escapeHtml(data.message || 'ChÆ°a Ä‘Äƒng nháº­p')}
+                    </div>
+                `;
+
+                updateBadge(0);
+
+                return;
+            }
+
+            let notifications = [];
+
+            if (Array.isArray(data)) {
+                notifications = data;
+            }
+            else if (Array.isArray(data.notifications)) {
+                notifications = data.notifications;
+            }
+            else if (Array.isArray(data.data)) {
+                notifications = data.data;
+            }
+
+            renderNotifications(notifications);
+
+        })
+        .catch(function (error) {
+
+            console.error('Notification error:', error);
+
+            list.innerHTML = `
+                <div class="notification-empty">
+                    KhÃ´ng thá»ƒ táº£i thÃ´ng bÃ¡o.
+                </div>
+            `;
+
+            updateBadge(0);
+
+        });
+
+    }
+
+
+    // ==============================
+    // HIá»‚N THá»Š THÃ”NG BÃO
+    // ==============================
+
+    function renderNotifications(notifications) {
+
+        if (!notifications || notifications.length === 0) {
+
+            list.innerHTML = `
+                <div class="notification-empty">
+                    KhÃ´ng cÃ³ thÃ´ng bÃ¡o má»›i.
+                </div>
+            `;
+
+            updateBadge(0);
+
+            return;
+        }
+
+        updateBadge(notifications.length);
+
+        list.innerHTML = notifications.map(function (item) {
+
+            const title =
+                item.title ||
+                item.name ||
+                item.subject ||
+                'ThÃ´ng bÃ¡o';
+
+            const message =
+                item.message ||
+                item.content ||
+                item.description ||
+                '';
+
+            const time =
+                item.time ||
+                item.created_at ||
+                item.createdAt ||
+                '';
+
+            return `
+                <div class="notification-item">
+
+                    <div class="notification-icon">
+                        &#128276;
+                    </div>
+
+                    <div class="notification-content">
+
+                        <div class="notification-title">
+                            ${escapeHtml(title)}
+                        </div>
+
+                        <div class="notification-message">
+                            ${escapeHtml(message)}
+                        </div>
+
+                        <div class="notification-time">
+                            ${escapeHtml(time)}
+                        </div>
+
+                    </div>
+
+                </div>
+            `;
+
+        }).join('');
+
+    }
+
+
+    // ==============================
+    // BADGE Sá» LÆ¯á»¢NG
+    // ==============================
+
+    function updateBadge(count) {
+
+        if (!badge) return;
+
+        if (count > 0) {
+
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.style.display = 'flex';
+
+        }
+        else {
+
+            badge.textContent = '0';
+            badge.style.display = 'none';
+
+        }
+
+        if (countText) {
+
+            if (count > 0) {
+                countText.textContent = '(' + count + ')';
+            }
+            else {
+                countText.textContent = '';
+            }
+
+        }
+
+    }
+
+
+    // ==============================
+    // CHá»NG HTML INJECTION
+    // ==============================
+
+    function escapeHtml(value) {
+
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
+    }
+
+});

@@ -1,0 +1,1373 @@
+<?php
+session_start();
+
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+
+/*
+|--------------------------------------------------------------------------
+| KIá»‚M TRA ÄÄ‚NG NHáº¬P VÃ€ PHÃ‚N QUYá»€N
+|--------------------------------------------------------------------------
+*/
+
+require_once __DIR__ . '/config/auth.php';
+
+requireLogin();
+
+$isAdmin = isAdmin();
+
+require_once __DIR__ . '/config/database.php';
+
+
+$message = '';
+$error = '';
+
+
+/*
+|--------------------------------------------------------------------------
+| THÃŠM DANH Má»¤C
+|--------------------------------------------------------------------------
+*/
+
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    && ($_POST['action'] ?? '') === 'add'
+    && $isAdmin
+) {
+
+    $categoryName = trim(
+        $_POST['category_name'] ?? ''
+    );
+
+    $description = trim(
+        $_POST['description'] ?? ''
+    );
+
+    if ($categoryName === '') {
+
+        $error =
+            'TÃªn danh má»¥c khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng.';
+
+    } else {
+
+        $check = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM categories
+            WHERE category_name = ?
+        ");
+
+        $check->execute([
+            $categoryName
+        ]);
+
+        if (
+            (int) $check->fetchColumn() > 0
+        ) {
+
+            $error =
+                'Danh má»¥c nÃ y Ä‘Ã£ tá»“n táº¡i.';
+
+        } else {
+
+            $insert = $pdo->prepare("
+                INSERT INTO categories (
+                    category_name,
+                    description
+                )
+                VALUES (?, ?)
+            ");
+
+            $insert->execute([
+                $categoryName,
+                $description
+            ]);
+
+            header(
+                'Location: categories.php?message=added'
+            );
+
+            exit;
+        }
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Cáº¬P NHáº¬T DANH Má»¤C
+|--------------------------------------------------------------------------
+*/
+
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    && ($_POST['action'] ?? '') === 'update'
+    && $isAdmin
+) {
+
+    $id = (int) (
+        $_POST['id'] ?? 0
+    );
+
+    $categoryName = trim(
+        $_POST['category_name'] ?? ''
+    );
+
+    $description = trim(
+        $_POST['description'] ?? ''
+    );
+
+    if (
+        $id <= 0
+        || $categoryName === ''
+    ) {
+
+        $error =
+            'Dá»¯ liá»‡u cáº­p nháº­t khÃ´ng há»£p lá»‡.';
+
+    } else {
+
+        $check = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM categories
+            WHERE category_name = ?
+            AND id != ?
+        ");
+
+        $check->execute([
+            $categoryName,
+            $id
+        ]);
+
+        if (
+            (int) $check->fetchColumn() > 0
+        ) {
+
+            $error =
+                'TÃªn danh má»¥c Ä‘Ã£ tá»“n táº¡i.';
+
+        } else {
+
+            $update = $pdo->prepare("
+                UPDATE categories
+                SET
+                    category_name = ?,
+                    description = ?
+                WHERE id = ?
+            ");
+
+            $update->execute([
+                $categoryName,
+                $description,
+                $id
+            ]);
+
+            header(
+                'Location: categories.php?message=updated'
+            );
+
+            exit;
+        }
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| XÃ“A DANH Má»¤C
+|--------------------------------------------------------------------------
+*/
+
+if (
+    $isAdmin
+    && isset($_GET['delete'])
+    && $_GET['delete'] !== ''
+) {
+
+    $id = (int) $_GET['delete'];
+
+    if ($id > 0) {
+
+        $checkProduct = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM products
+            WHERE category_id = ?
+        ");
+
+        $checkProduct->execute([
+            $id
+        ]);
+
+        if (
+            (int) $checkProduct
+                ->fetchColumn() > 0
+        ) {
+
+            header(
+                'Location: categories.php?message=used'
+            );
+
+            exit;
+        }
+
+        $delete = $pdo->prepare("
+            DELETE FROM categories
+            WHERE id = ?
+        ");
+
+        $delete->execute([
+            $id
+        ]);
+
+        header(
+            'Location: categories.php?message=deleted'
+        );
+
+        exit;
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Láº¤Y DANH Má»¤C Cáº¦N Sá»¬A
+|--------------------------------------------------------------------------
+*/
+
+$editCategory = null;
+
+if (
+    $isAdmin
+    && isset($_GET['edit'])
+    && $_GET['edit'] !== ''
+) {
+
+    $id = (int) $_GET['edit'];
+
+    $selectEdit = $pdo->prepare("
+        SELECT *
+        FROM categories
+        WHERE id = ?
+    ");
+
+    $selectEdit->execute([
+        $id
+    ]);
+
+    $editCategory = $selectEdit
+        ->fetch(PDO::FETCH_ASSOC);
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| THÃ”NG BÃO
+|--------------------------------------------------------------------------
+*/
+
+if (
+    isset($_GET['message'])
+) {
+
+    if (
+        $_GET['message'] === 'added'
+    ) {
+
+        $message =
+            'ThÃªm danh má»¥c thÃ nh cÃ´ng.';
+    }
+
+    if (
+        $_GET['message'] === 'updated'
+    ) {
+
+        $message =
+            'Cáº­p nháº­t danh má»¥c thÃ nh cÃ´ng.';
+    }
+
+    if (
+        $_GET['message'] === 'deleted'
+    ) {
+
+        $message =
+            'XÃ³a danh má»¥c thÃ nh cÃ´ng.';
+    }
+
+    if (
+        $_GET['message'] === 'used'
+    ) {
+
+        $error =
+            'KhÃ´ng thá»ƒ xÃ³a vÃ¬ danh má»¥c Ä‘ang cÃ³ sáº£n pháº©m.';
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Láº¤Y DANH SÃCH DANH Má»¤C
+|--------------------------------------------------------------------------
+*/
+
+$categories = $pdo
+    ->query("
+        SELECT *
+        FROM categories
+        ORDER BY id ASC
+    ")
+    ->fetchAll(
+        PDO::FETCH_ASSOC
+    );
+
+?>
+
+<!DOCTYPE html>
+
+<html lang="vi">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
+<title>
+Quáº£n lÃ½ danh má»¥c
+</title>
+
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| HEADER
+|--------------------------------------------------------------------------
+*/
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 18px 40px;
+
+    color: white;
+    background: #1e3a5f;
+}
+
+
+.header h1 {
+    margin: 0;
+    font-size: 23px;
+}
+
+
+.header a {
+    color: white;
+    text-decoration: none;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CONTAINER
+|--------------------------------------------------------------------------
+*/
+
+.container {
+    max-width: 1450px;
+
+    margin: 30px auto;
+
+    padding: 0 20px;
+}
+
+
+.back {
+    display: inline-block;
+
+    margin-bottom: 20px;
+
+    color: #2563eb;
+
+    text-decoration: none;
+
+    font-weight: bold;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| LAYOUT
+|--------------------------------------------------------------------------
+*/
+
+.grid {
+    display: grid;
+
+    grid-template-columns:
+        390px minmax(0, 1fr);
+
+    gap: 25px;
+
+    align-items: start;
+}
+
+
+/*
+| Khi lÃ  Staff:
+| chá»‰ cÃ²n báº£ng danh má»¥c
+| vÃ  báº£ng chiáº¿m toÃ n bá»™ chiá»u rá»™ng
+*/
+
+.grid.staff-view {
+    display: block;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| BOX
+|--------------------------------------------------------------------------
+*/
+
+.box {
+    padding: 28px;
+
+    background: #ffffff;
+
+    border:
+        1px solid #e2e8f0;
+
+    border-radius: 16px;
+
+    box-shadow:
+        0 10px 30px
+        rgba(
+            15,
+            23,
+            42,
+            0.08
+        );
+}
+
+
+.box h2 {
+    margin:
+        0 0 22px;
+
+    padding-bottom:
+        16px;
+
+    color:
+        #1e3a5f;
+
+    font-size:
+        23px;
+
+    border-bottom:
+        2px solid
+        #e2e8f0;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| FORM
+|--------------------------------------------------------------------------
+*/
+
+label {
+    display: block;
+
+    margin-bottom:
+        7px;
+
+    font-weight:
+        bold;
+}
+
+
+input,
+textarea {
+
+    width:
+        100%;
+
+    margin-bottom:
+        15px;
+
+    padding:
+        11px;
+
+    border:
+        1px solid
+        #cbd5e1;
+
+    border-radius:
+        7px;
+
+    font-size:
+        14px;
+}
+
+
+textarea {
+
+    min-height:
+        130px;
+
+    resize:
+        vertical;
+}
+
+
+button {
+
+    width:
+        100%;
+
+    padding:
+        12px;
+
+    border:
+        none;
+
+    border-radius:
+        7px;
+
+    color:
+        white;
+
+    background:
+        #2563eb;
+
+    font-size:
+        15px;
+
+    font-weight:
+        bold;
+
+    cursor:
+        pointer;
+}
+
+
+button:hover {
+
+    background:
+        #1d4ed8;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| THÃ”NG BÃO
+|--------------------------------------------------------------------------
+*/
+
+.success {
+
+    margin-bottom:
+        20px;
+
+    padding:
+        13px;
+
+    color:
+        #166534;
+
+    background:
+        #dcfce7;
+
+    border-radius:
+        7px;
+}
+
+
+.error {
+
+    margin-bottom:
+        20px;
+
+    padding:
+        13px;
+
+    color:
+        #991b1b;
+
+    background:
+        #fee2e2;
+
+    border-radius:
+        7px;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| THÃ”NG BÃO STAFF
+|--------------------------------------------------------------------------
+*/
+
+.view-only {
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        12px;
+
+    margin-bottom:
+        22px;
+
+    padding:
+        16px 20px;
+
+    color:
+        #1e40af;
+
+    background:
+        #eff6ff;
+
+    border:
+        1px solid
+        #bfdbfe;
+
+    border-left:
+        5px solid
+        #2563eb;
+
+    border-radius:
+        10px;
+}
+
+
+.view-only strong {
+
+    white-space:
+        nowrap;
+
+    font-size:
+        15px;
+}
+
+
+.view-only span {
+
+    color:
+        #475569;
+
+    font-size:
+        14px;
+
+    line-height:
+        1.6;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| TABLE
+|--------------------------------------------------------------------------
+*/
+
+.table-wrap {
+
+    width:
+        100%;
+
+    overflow-x:
+        auto;
+
+    border:
+        1px solid
+        #e2e8f0;
+
+    border-radius:
+        12px;
+}
+
+
+table {
+
+    width:
+        100%;
+
+    min-width:
+        850px;
+
+    border-collapse:
+        separate;
+
+    border-spacing:
+        0;
+
+    background:
+        white;
+}
+
+
+th,
+td {
+
+    padding:
+        16px 15px;
+
+    border-bottom:
+        1px solid
+        #e2e8f0;
+
+    text-align:
+        left;
+
+    vertical-align:
+        middle;
+}
+
+
+th {
+
+    color:
+        #ffffff;
+
+    background:
+        #1e3a5f;
+
+    font-size:
+        13px;
+
+    font-weight:
+        700;
+
+    text-transform:
+        uppercase;
+
+    letter-spacing:
+        0.4px;
+
+    white-space:
+        nowrap;
+}
+
+
+th:first-child {
+
+    border-top-left-radius:
+        10px;
+}
+
+
+th:last-child {
+
+    border-top-right-radius:
+        10px;
+}
+
+
+tbody tr {
+
+    transition:
+        background
+        0.2s ease;
+}
+
+
+tbody tr:nth-child(even) {
+
+    background:
+        #f8fafc;
+}
+
+
+tbody tr:hover {
+
+    background:
+        #eff6ff;
+}
+
+
+tbody tr:last-child td {
+
+    border-bottom:
+        none;
+}
+
+
+td {
+
+    color:
+        #334155;
+
+    font-size:
+        14px;
+}
+
+
+td:nth-child(2) {
+
+    color:
+        #1e293b;
+
+    font-weight:
+        700;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| NÃšT THAO TÃC
+|--------------------------------------------------------------------------
+*/
+
+.action {
+
+    display:
+        flex;
+
+    gap:
+        7px;
+}
+
+
+.edit {
+
+    padding:
+        7px 10px;
+
+    color:
+        white;
+
+    background:
+        #f59e0b;
+
+    border-radius:
+        5px;
+
+    text-decoration:
+        none;
+}
+
+
+.delete {
+
+    padding:
+        7px 10px;
+
+    color:
+        white;
+
+    background:
+        #dc2626;
+
+    border-radius:
+        5px;
+
+    text-decoration:
+        none;
+}
+
+
+.edit:hover {
+
+    background:
+        #d97706;
+}
+
+
+.delete:hover {
+
+    background:
+        #b91c1c;
+}
+
+
+.cancel {
+
+    display:
+        inline-block;
+
+    margin-top:
+        15px;
+
+    color:
+        #2563eb;
+
+    font-weight:
+        bold;
+
+    text-decoration:
+        none;
+}
+
+
+.empty {
+
+    padding:
+        25px;
+
+    text-align:
+        center;
+
+    color:
+        #64748b;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| RESPONSIVE
+|--------------------------------------------------------------------------
+*/
+
+@media (
+    max-width: 1000px
+) {
+
+    .grid {
+
+        grid-template-columns:
+            1fr;
+    }
+
+
+    .header {
+
+        padding:
+            18px 20px;
+    }
+
+
+    .view-only {
+
+        align-items:
+            flex-start;
+
+        flex-direction:
+            column;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<header class="header">
+
+<h1>
+
+QUáº¢N LÃ DANH Má»¤C
+
+</h1>
+
+
+<a href="index.php">
+
+â† Dashboard
+
+</a>
+
+</header>
+
+
+<main class="container">
+
+
+<a
+    class="back"
+    href="index.php"
+>
+
+â† Quay láº¡i Dashboard
+
+</a>
+
+
+<?php if ($message !== ''): ?>
+
+<div class="success">
+
+<?= htmlspecialchars($message) ?>
+
+</div>
+
+<?php endif; ?>
+
+
+<?php if ($error !== ''): ?>
+
+<div class="error">
+
+<?= htmlspecialchars($error) ?>
+
+</div>
+
+<?php endif; ?>
+
+
+<?php if (!$isAdmin): ?>
+
+<div class="view-only">
+
+<strong>
+
+Cháº¿ Ä‘á»™ xem dÃ nh cho NhÃ¢n viÃªn
+
+</strong>
+
+
+<span>
+
+Báº¡n cÃ³ thá»ƒ xem danh sÃ¡ch vÃ  thÃ´ng tin
+danh má»¥c váº­t tÆ°, nhÆ°ng khÃ´ng cÃ³ quyá»n
+thÃªm, sá»­a hoáº·c xÃ³a dá»¯ liá»‡u.
+
+</span>
+
+</div>
+
+<?php endif; ?>
+
+
+<div
+class="
+grid
+<?=
+    !$isAdmin
+    ? 'staff-view'
+    : ''
+?>
+"
+>
+
+
+<?php if ($isAdmin): ?>
+
+
+<div class="box">
+
+
+<h2>
+
+<?=
+$editCategory
+? 'Cáº­p nháº­t danh má»¥c'
+: 'ThÃªm danh má»¥c'
+?>
+
+</h2>
+
+
+<form method="POST">
+
+
+<input
+type="hidden"
+name="action"
+value="<?= $editCategory ? 'update' : 'add' ?>"
+>
+
+
+<?php if ($editCategory): ?>
+
+
+<input
+type="hidden"
+name="id"
+value="
+<?=
+$editCategory['id']
+?>
+"
+>
+
+
+<?php endif; ?>
+
+
+<label>
+
+TÃªn danh má»¥c *
+
+</label>
+
+
+<input
+type="text"
+name="category_name"
+required
+placeholder="
+VD: Váº­t tÆ° Ä‘iá»‡n
+"
+value="
+<?= htmlspecialchars(
+$editCategory[
+'category_name'
+] ?? ''
+) ?>
+"
+>
+
+
+<label>
+
+MÃ´ táº£
+
+</label>
+
+
+<textarea
+name="description"
+placeholder="
+Nháº­p mÃ´ táº£ danh má»¥c...
+"
+><?= htmlspecialchars(
+$editCategory[
+'description'
+] ?? ''
+) ?></textarea>
+
+
+<button
+type="submit"
+>
+
+<?=
+$editCategory
+? 'Cáº­p nháº­t danh má»¥c'
+: 'ThÃªm danh má»¥c'
+?>
+
+</button>
+
+
+</form>
+
+
+<?php if ($editCategory): ?>
+
+
+<a
+class="cancel"
+href="categories.php"
+>
+
+Há»§y chá»‰nh sá»­a
+
+</a>
+
+
+<?php endif; ?>
+
+
+</div>
+
+
+<?php endif; ?>
+
+
+<div class="box">
+
+
+<h2>
+
+Danh sÃ¡ch danh má»¥c
+
+</h2>
+
+
+<?php if (
+count($categories) === 0
+): ?>
+
+
+<div class="empty">
+
+ChÆ°a cÃ³ danh má»¥c nÃ o.
+
+</div>
+
+
+<?php else: ?>
+
+
+<div class="table-wrap">
+
+
+<table>
+
+
+<thead>
+
+
+<tr>
+
+<th>ID</th>
+
+<th>TÃªn danh má»¥c</th>
+
+<th>MÃ´ táº£</th>
+
+<?php if ($isAdmin): ?>
+
+<th>Thao tÃ¡c</th>
+
+<?php endif; ?>
+
+</tr>
+
+
+</thead>
+
+
+<tbody>
+
+
+<?php foreach (
+$categories
+as $category
+): ?>
+
+
+<tr>
+
+
+<td>
+
+<?=
+$category['id']
+?>
+
+</td>
+
+
+<td>
+
+<?= htmlspecialchars(
+$category[
+'category_name'
+]
+) ?>
+
+</td>
+
+
+<td>
+
+<?= htmlspecialchars(
+$category[
+'description'
+] ?? ''
+) ?>
+
+</td>
+
+
+<?php if ($isAdmin): ?>
+
+
+<td>
+
+
+<div class="action">
+
+
+<a
+class="edit"
+href="
+categories.php?edit=
+<?=
+$category['id']
+?>
+"
+>
+
+Sá»­a
+
+</a>
+
+
+<a
+class="delete"
+href="
+categories.php?delete=
+<?=
+$category['id']
+?>
+"
+onclick="
+return confirm(
+'Báº¡n cÃ³ cháº¯c muá»‘n xÃ³a danh má»¥c nÃ y?'
+);
+"
+>
+
+XÃ³a
+
+</a>
+
+
+</div>
+
+
+</td>
+
+
+<?php endif; ?>
+
+
+</tr>
+
+
+<?php endforeach; ?>
+
+
+</tbody>
+
+
+</table>
+
+
+</div>
+
+
+<?php endif; ?>
+
+
+</div>
+
+
+</div>
+
+
+</main>
+
+
+</body>
+
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "VIET-HAN WMS",
+  "image": "mcr.microsoft.com/devcontainers/php:8.2",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "php.suggest.basic": false
+      },
+      "extensions": [
+        "bmewburn.vscode-intelephense-client"
+      ]
+    }
+  },
+  "portsAttributes": {
+    "8000": {
+      "label": "VIET-HAN WMS Web Server",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "postStartCommand": "nohup php -S 0.0.0.0:8000 -t app > /tmp/php-server.log 2>&1 &"
+}
