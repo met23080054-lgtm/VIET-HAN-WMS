@@ -1,0 +1,6 @@
+<?php
+
+define(
+    'ADMIN_REGISTRATION_CODE',
+    'VIETHAN-ADMIN-2026'
+);

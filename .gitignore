@@ -1,0 +1,29 @@
+﻿# ===== FILE BACKUP / TAM =====
+*.bak
+*.before_*
+*.backup_*
+*.ps1
+dir
+where
+composer
+
+# ===== THU MUC KHONG CAN =====
+backup_import_products/
+php/
+
+# ===== VENDOR =====
+app/vendor/
+
+# ===== DATABASE =====
+app/database/*.sqlite
+app/database/*.db
+
+# ===== UPLOADS =====
+app/uploads/*
+!app/uploads/.gitkeep
+
+# ===== HE THONG =====
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
