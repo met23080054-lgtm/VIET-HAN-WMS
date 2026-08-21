@@ -1,0 +1,780 @@
+<?php
+
+header('Content-Type: text/html; charset=UTF-8');
+
+session_start();
+header('Content-Type: text/html; charset=UTF-8');
+
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+
+require_once __DIR__ . '/config/database.php';
+
+/*
+|--------------------------------------------------------------------------
+| LÃ¡ÂºÂ¤Y DÃ¡Â»Â® LIÃ¡Â»â€ U BÃƒÂO CÃƒÂO TÃ¡Â»â€™N KHO
+|--------------------------------------------------------------------------
+*/
+
+$products = $pdo
+    ->query("
+        SELECT
+            products.id,
+            products.product_code,
+            products.product_name,
+            products.unit,
+            products.import_price,
+            products.sale_price,
+            products.quantity,
+
+            categories.category_name,
+
+            suppliers.supplier_name
+
+        FROM products
+
+        LEFT JOIN categories
+
+            ON products.category_id
+            = categories.id
+
+        LEFT JOIN suppliers
+
+            ON products.supplier_id
+            = suppliers.id
+
+        ORDER BY
+            products.id ASC
+    ")
+    ->fetchAll(
+        PDO::FETCH_ASSOC
+    );
+
+/*
+|--------------------------------------------------------------------------
+| TÃ¡Â»â€NG HÃ¡Â»Â¢P SÃ¡Â»Â LIÃ¡Â»â€ U
+|--------------------------------------------------------------------------
+*/
+
+$totalProducts =
+    count($products);
+
+$totalQuantity = 0;
+
+$totalValue = 0;
+
+$outOfStock = 0;
+
+$lowStock = 0;
+
+foreach (
+    $products
+    as $product
+) {
+
+    $quantity =
+        (int) $product[
+            'quantity'
+        ];
+
+    $importPrice =
+        (float) $product[
+            'import_price'
+        ];
+
+    $totalQuantity +=
+        $quantity;
+
+    $totalValue +=
+        $quantity
+        * $importPrice;
+
+    if (
+        $quantity <= 0
+    ) {
+
+        $outOfStock++;
+
+    } elseif (
+        $quantity <= 10
+    ) {
+
+        $lowStock++;
+    }
+}
+
+?>
+
+<!DOCTYPE html>
+
+<html lang="vi">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
+<title>
+BÃƒÂ¡o cÃƒÂ¡o tÃ¡Â»â€œn kho
+</title>
+
+<style>
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family:
+        Arial,
+        sans-serif;
+    background:
+        #f1f5f9;
+    color:
+        #1e293b;
+}
+
+.header {
+    display: flex;
+    justify-content:
+        space-between;
+    align-items:
+        center;
+    padding:
+        18px 40px;
+    color:
+        white;
+    background:
+        #1e3a5f;
+}
+
+.header h1 {
+    margin: 0;
+    font-size:
+        23px;
+}
+
+.header a {
+    color:
+        white;
+    text-decoration:
+        none;
+}
+
+.container {
+    max-width:
+        1450px;
+    margin:
+        30px auto;
+    padding:
+        0 20px;
+}
+
+.back {
+    display:
+        inline-block;
+    margin-bottom:
+        20px;
+    color:
+        #2563eb;
+    font-weight:
+        bold;
+    text-decoration:
+        none;
+}
+
+.summary {
+    display:
+        grid;
+    grid-template-columns:
+        repeat(
+            4,
+            1fr
+        );
+    gap:
+        18px;
+    margin-bottom:
+        25px;
+}
+
+.card {
+    padding:
+        20px;
+    background:
+        white;
+    border-radius:
+        12px;
+    box-shadow:
+        0 5px 18px
+        rgba(
+            0,
+            0,
+            0,
+            0.08
+        );
+}
+
+.card-title {
+    color:
+        #64748b;
+    font-size:
+        14px;
+}
+
+.card-value {
+    margin-top:
+        10px;
+    color:
+        #1e3a5f;
+    font-size:
+        28px;
+    font-weight:
+        bold;
+}
+
+.card-danger {
+    color:
+        #dc2626;
+}
+
+.card-warning {
+    color:
+        #d97706;
+}
+
+.box {
+    padding:
+        25px;
+    background:
+        white;
+    border-radius:
+        12px;
+    box-shadow:
+        0 5px 18px
+        rgba(
+            0,
+            0,
+            0,
+            0.08
+        );
+}
+
+.box h2 {
+    margin-top:
+        0;
+}
+
+.table-wrap {
+    overflow-x:
+        auto;
+}
+
+table {
+    width:
+        100%;
+    min-width:
+        1150px;
+    border-collapse:
+        collapse;
+}
+
+th,
+td {
+    padding:
+        12px;
+    border-bottom:
+        1px solid
+        #e2e8f0;
+    text-align:
+        left;
+    white-space:
+        nowrap;
+}
+
+th {
+    background:
+        #f8fafc;
+}
+
+.status {
+    display:
+        inline-block;
+    padding:
+        6px 10px;
+    border-radius:
+        20px;
+    font-size:
+        13px;
+    font-weight:
+        bold;
+}
+
+.status-ok {
+    color:
+        #166534;
+    background:
+        #dcfce7;
+}
+
+.status-low {
+    color:
+        #92400e;
+    background:
+        #fef3c7;
+}
+
+.status-out {
+    color:
+        #991b1b;
+    background:
+        #fee2e2;
+}
+
+.total-value {
+    color:
+        #166534;
+    font-weight:
+        bold;
+}
+
+.empty {
+    padding:
+        30px;
+    color:
+        #64748b;
+    text-align:
+        center;
+}
+
+@media (
+    max-width:
+    1000px
+) {
+
+    .summary {
+        grid-template-columns:
+            repeat(
+                2,
+                1fr
+            );
+    }
+
+    .header {
+        padding:
+            18px 20px;
+    }
+
+}
+
+@media (
+    max-width:
+    600px
+) {
+
+    .summary {
+        grid-template-columns:
+            1fr;
+    }
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header class="header">
+
+<h1>
+BÃƒÂO CÃƒÂO TÃ¡Â»â€™N KHO
+</h1>
+
+<a href="index.php">
+
+Ã¢â€ Â Dashboard
+
+</a>
+
+</header>
+
+<main class="container">
+
+<a
+    class="back"
+    href="index.php"
+>
+
+Ã¢â€ Â Quay lÃ¡ÂºÂ¡i Dashboard
+
+</a>
+
+<div class="summary">
+
+<div class="card">
+
+<div class="card-title">
+
+TÃ¡Â»â€¢ng sÃ¡ÂºÂ£n phÃ¡ÂºÂ©m
+
+</div>
+
+<div class="card-value">
+
+<?= number_format(
+    $totalProducts
+) ?>
+
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+
+TÃ¡Â»â€¢ng sÃ¡Â»â€˜ lÃ†Â°Ã¡Â»Â£ng tÃ¡Â»â€œn
+
+</div>
+
+<div class="card-value">
+
+<?= number_format(
+    $totalQuantity
+) ?>
+
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+
+SÃ¡ÂºÂ¯p hÃ¡ÂºÂ¿t hÃƒÂ ng
+
+</div>
+
+<div
+    class="
+    card-value
+    card-warning
+    "
+>
+
+<?= number_format(
+    $lowStock
+) ?>
+
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="card-title">
+
+HÃ¡ÂºÂ¿t hÃƒÂ ng
+
+</div>
+
+<div
+    class="
+    card-value
+    card-danger
+    "
+>
+
+<?= number_format(
+    $outOfStock
+) ?>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="box">
+
+<h2>
+Chi tiÃ¡ÂºÂ¿t tÃ¡Â»â€œn kho
+</h2>
+
+<p>
+
+TÃ¡Â»â€¢ng giÃƒÂ¡ trÃ¡Â»â€¹ tÃ¡Â»â€œn kho:
+
+<strong
+    class="total-value"
+>
+
+<?= number_format(
+    $totalValue,
+    0,
+    ',',
+    '.'
+) ?>
+
+Ã„â€˜
+
+</strong>
+
+</p>
+
+<?php if (
+    count($products) === 0
+): ?>
+
+<div class="empty">
+
+ChÃ†Â°a cÃƒÂ³ sÃ¡ÂºÂ£n phÃ¡ÂºÂ©m.
+
+</div>
+
+<?php else: ?>
+
+<div class="table-wrap">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>ID</th>
+
+<th>MÃƒÂ£ sÃ¡ÂºÂ£n phÃ¡ÂºÂ©m</th>
+
+<th>TÃƒÂªn sÃ¡ÂºÂ£n phÃ¡ÂºÂ©m</th>
+
+<th>Danh mÃ¡Â»Â¥c</th>
+
+<th>NhÃƒÂ  cung cÃ¡ÂºÂ¥p</th>
+
+<th>Ã„ÂVT</th>
+
+<th>GiÃƒÂ¡ nhÃ¡ÂºÂ­p</th>
+
+<th>GiÃƒÂ¡ bÃƒÂ¡n</th>
+
+<th>TÃ¡Â»â€œn kho</th>
+
+<th>GiÃƒÂ¡ trÃ¡Â»â€¹ tÃ¡Â»â€œn</th>
+
+<th>TrÃ¡ÂºÂ¡ng thÃƒÂ¡i</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<?php foreach (
+    $products
+    as $product
+): ?>
+
+<?php
+
+$quantity =
+    (int) $product[
+        'quantity'
+    ];
+
+$value =
+    $quantity
+    *
+    (float) $product[
+        'import_price'
+    ];
+
+if (
+    $quantity <= 0
+) {
+
+    $status =
+        'HÃ¡ÂºÂ¿t hÃƒÂ ng';
+
+    $statusClass =
+        'status-out';
+
+} elseif (
+    $quantity <= 10
+) {
+
+    $status =
+        'SÃ¡ÂºÂ¯p hÃ¡ÂºÂ¿t';
+
+    $statusClass =
+        'status-low';
+
+} else {
+
+    $status =
+        'CÃƒÂ²n hÃƒÂ ng';
+
+    $statusClass =
+        'status-ok';
+}
+
+?>
+
+<tr>
+
+<td>
+
+<?= $product['id'] ?>
+
+</td>
+
+<td>
+
+<?= htmlspecialchars(
+    $product[
+        'product_code'
+    ]
+) ?>
+
+</td>
+
+<td>
+
+<?= htmlspecialchars(
+    $product[
+        'product_name'
+    ]
+) ?>
+
+</td>
+
+<td>
+
+<?= htmlspecialchars(
+    $product[
+        'category_name'
+    ] ?? ''
+) ?>
+
+</td>
+
+<td>
+
+<?= htmlspecialchars(
+    $product[
+        'supplier_name'
+    ] ?? ''
+) ?>
+
+</td>
+
+<td>
+
+<?= htmlspecialchars(
+    $product[
+        'unit'
+    ]
+) ?>
+
+</td>
+
+<td>
+
+<?= number_format(
+    $product[
+        'import_price'
+    ],
+    0,
+    ',',
+    '.'
+) ?>
+
+Ã„â€˜
+
+</td>
+
+<td>
+
+<?= number_format(
+    $product[
+        'sale_price'
+    ],
+    0,
+    ',',
+    '.'
+) ?>
+
+Ã„â€˜
+
+</td>
+
+<td>
+
+<strong>
+
+<?= number_format(
+    $quantity
+) ?>
+
+</strong>
+
+</td>
+
+<td
+    class="
+    total-value
+    "
+>
+
+<?= number_format(
+    $value,
+    0,
+    ',',
+    '.'
+) ?>
+
+Ã„â€˜
+
+</td>
+
+<td>
+
+<span
+    class="
+    status
+    <?= $statusClass ?>
+    "
+>
+
+<?= $status ?>
+
+</span>
+
+</td>
+
+</tr>
+
+<?php endforeach; ?>
+
+</tbody>
+
+</table>
+
+</div>
+
+<?php endif; ?>
+
+</div>
+
+</main>
+
+</body>
+
+</html>
