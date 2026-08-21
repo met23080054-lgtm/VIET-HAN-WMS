@@ -1,4 +1,5 @@
 <?php
+header('Content-Type: text/html; charset=UTF-8');
 
 session_start();
 
@@ -823,6 +824,7 @@ QUẢN LÝ SẢN PHẨM
 <?php endif; ?>
 
 <?php
+header('Content-Type: text/html; charset=UTF-8');
 require __DIR__ . '/product_import_panel.php';
 ?>
 

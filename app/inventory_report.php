@@ -1,4 +1,5 @@
 <?php
+header('Content-Type: text/html; charset=UTF-8');
 
 session_start();
 
@@ -581,6 +582,7 @@ Chưa có sản phẩm.
 ): ?>
 
 <?php
+header('Content-Type: text/html; charset=UTF-8');
 
 $quantity =
     (int) $product[
