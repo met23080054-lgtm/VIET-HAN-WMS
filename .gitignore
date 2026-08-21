@@ -1,7 +1,0 @@
-# Logs
-*.log
-nohup.out
-
-# OS files
-.DS_Store
-Thumbs.db
